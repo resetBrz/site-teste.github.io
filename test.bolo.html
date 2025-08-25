@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Registro de Evidência Arqueológica</title>
+  <style>
+    body {
+      background-color: #fff9c4;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      height: 100vh;
+    }
+
+    .form-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .form-container input,
+    .form-container select {
+      padding: 10px;
+      width: 260px;
+      margin-bottom: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .form-container button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-bottom: 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #fbc02d;
+      cursor: pointer;
+    }
+
+    .sidebar {
+      width: 400px;
+      background-color: #fffde7;
+      border-left: 2px solid #fbc02d;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .section h3 {
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #fff9c4;
+      padding: 8px;
+      margin-bottom: 5px;
+      border-radius: 5px;
+    }
+
+    .item span {
+      font-weight: bold;
+    }
+
+    .item button {
+      background-color: red;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-container">
+    <input type="text" id="catalogo" placeholder="Nome do catálogo" />
+    <select id="tipo">
+      <option value="">Selecione o tipo</option>
+      <option>Artefatos</option>
+      <option>Restos de Construções</option>
+      <option>Vestígios de Assentamentos Humanos</option>
+      <option>Arte Rupestre</option>
+      <option>Restos de Animais e Plantas</option>
+      <option>Evidências de Rituais e Práticas Culturais</option>
+    </select>
+    <button id="confirmar" disabled>Confirmar</button>
+  </div>
+
+  <div class="sidebar" id="listaObjetos">
+    <!-- Objetos aparecem aqui -->
+  </div>
+
+  <script>
+    const catalogoInput = document.getElementById('catalogo');
+    const tipoSelect = document.getElementById('tipo');
+    const confirmarBtn = document.getElementById('confirmar');
+    const listaObjetos = document.getElementById('listaObjetos');
+
+    let objetos = JSON.parse(localStorage.getItem('objetos')) || [];
+
+    confirmarBtn.disabled = true;
+
+    catalogoInput.addEventListener('input', () => {
+      confirmarBtn.disabled = catalogoInput.value.trim() === '';
+    });
+
+    confirmarBtn.addEventListener('click', () => {
+      const nome = catalogoInput.value.trim();
+      const tipo = tipoSelect.value;
+
+      if (nome && tipo) {
+        // Procurar primeiro índice vazio
+        let index = objetos.findIndex(o => o === null);
+        if (index === -1) index = objetos.length;
+
+        objetos[index] = { nome, tipo };
+        salvarEAtualizar();
+        catalogoInput.value = '';
+        tipoSelect.value = '';
+        confirmarBtn.disabled = true;
+      }
+    });
+
+    function salvarEAtualizar() {
+      localStorage.setItem('objetos', JSON.stringify(objetos));
+      renderizarObjetos();
+    }
+
+    function renderizarObjetos() {
+      listaObjetos.innerHTML = '';
+
+      const tiposAgrupados = {};
+
+      objetos.forEach((obj, index) => {
+        if (obj) {
+          if (!tiposAgrupados[obj.tipo]) {
+            tiposAgrupados[obj.tipo] = [];
+          }
+
+          tiposAgrupados[obj.tipo].push({
+            index: index,
+            nome: obj.nome
+          });
+        }
+      });
+
+      Object.keys(tiposAgrupados).forEach(tipo => {
+        const secao = document.createElement('div');
+        secao.className = 'section';
+        secao.innerHTML = `<h3>${tipo}</h3>`;
+
+        tiposAgrupados[tipo].forEach(obj => {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.innerHTML = `
+            <span>#${(obj.index + 1).toString().padStart(3, '0')} - ${obj.nome}</span>
+            <button onclick="deletar(${obj.index})">X</button>
+          `;
+          secao.appendChild(div);
+        });
+
+        listaObjetos.appendChild(secao);
+      });
+    }
+
+    function deletar(index) {
+      objetos[index] = null;
+      salvarEAtualizar();
+    }
+
+    renderizarObjetos();
+  </script>
+</body>
+</html>
