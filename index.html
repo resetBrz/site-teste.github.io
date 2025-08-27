@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Registro de Itens Históricos</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #ddd5cd;
+      color: #352315;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    /* Lado esquerdo - Registro */
+    .form-section {
+      flex: 7;
+      padding: 20px;
+      background-color: #f3eee9;
+    }
+
+    .form-section h2 {
+      color: #594126;
+      margin-bottom: 15px;
+    }
+
+    form label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #352315;
+    }
+
+    form input, form select, form button {
+      width: 95%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #594126;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    form button {
+      background-color: #594126;
+      color: #ddd5cd;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    form button:hover {
+      background-color: #352315;
+    }
+
+    #map {
+      height: 300px;
+      margin-top: 15px;
+      border: 2px solid #594126;
+      border-radius: 8px;
+    }
+
+    /* Lado direito - Registros */
+    .sidebar {
+      flex: 3;
+      padding: 20px;
+      background-color: #594126;
+      color: #ddd5cd;
+      overflow-y: auto;
+    }
+
+    .sidebar h3 {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .item {
+      background-color: #352315;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      position: relative;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+
+    .item h4 {
+      margin: 0 0 10px;
+      color: #ddd5cd;
+    }
+
+    .item p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+
+    .item img {
+      max-width: 100%;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: #ddd5cd;
+      color: #352315;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .filter {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .filter select, .filter button {
+      padding: 8px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ddd5cd;
+    }
+
+    .filter button {
+      background-color: #352315;
+      color: #ddd5cd;
+      cursor: pointer;
+    }
+
+    .filter button:hover {
+      background-color: #ddd5cd;
+      color: #352315;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Formulário -->
+    <div class="form-section">
+      <h2>Registrar Item Histórico</h2>
+      <form id="itemForm">
+        <label>Nome do Item:</label>
+        <input type="text" id="nome" required>
+
+        <label>Descrição:</label>
+        <input type="text" id="descricao" required>
+
+        <label>Período Histórico:</label>
+        <select id="periodo" required>
+          <option value="">Selecione</option>
+          <option value="Pré-História">Pré-História</option>
+          <option value="Idade Antiga">Idade Antiga</option>
+          <option value="Idade Média">Idade Média</option>
+          <option value="Idade Moderna">Idade Moderna</option>
+          <option value="Idade Contemporânea">Idade Contemporânea</option>
+        </select>
+
+        <label>Imagem:</label>
+        <input type="file" id="imagem" accept="image/*">
+
+        <label>Selecione no mapa o local:</label>
+        <div id="map"></div>
+
+        <button type="submit">Registrar</button>
+      </form>
+    </div>
+
+    <!-- Registros -->
+    <div class="sidebar">
+      <h3>Itens Registrados</h3>
+      <div class="filter">
+        <select id="filtroPeriodo">
+          <option value="">Todos os períodos</option>
+          <option value="Pré-História">Pré-História</option>
+          <option value="Idade Antiga">Idade Antiga</option>
+          <option value="Idade Média">Idade Média</option>
+          <option value="Idade Moderna">Idade Moderna</option>
+          <option value="Idade Contemporânea">Idade Contemporânea</option>
+        </select>
+        <button onclick="aplicarFiltro()">Filtrar</button>
+        <button onclick="limparFiltro()">Limpar</button>
+      </div>
+      <div id="lista"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    let map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let marker;
+    let items = JSON.parse(localStorage.getItem("items")) || [];
+
+    map.on("click", function(e) {
+      if (marker) map.removeLayer(marker);
+      marker = L.marker(e.latlng).addTo(map);
+      marker.bindPopup("Local selecionado").openPopup();
+      map.selectedCoords = e.latlng;
+    });
+
+    document.getElementById("itemForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const nome = document.getElementById("nome").value;
+      const descricao = document.getElementById("descricao").value;
+      const periodo = document.getElementById("periodo").value;
+      const imagemInput = document.getElementById("imagem");
+      const imagem = imagemInput.files[0] ? URL.createObjectURL(imagemInput.files[0]) : null;
+      const local = map.selectedCoords ? `${map.selectedCoords.lat.toFixed(2)}, ${map.selectedCoords.lng.toFixed(2)}` : "Não informado";
+
+      let item = { nome, descricao, periodo, imagem, local };
+      items.push(item);
+      localStorage.setItem("items", JSON.stringify(items));
+
+      renderItems(items);
+      e.target.reset();
+      if (marker) map.removeLayer(marker);
+      map.selectedCoords = null;
+    });
+
+    function renderItems(lista) {
+      const listaDiv = document.getElementById("lista");
+      listaDiv.innerHTML = "";
+      lista.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.classList.add("item");
+        div.innerHTML = `
+          <button class="remove-btn" onclick="removerItem(${index})">×</button>
+          <h4>${item.nome}</h4>
+          <p><b>Descrição:</b> ${item.descricao}</p>
+          <p><b>Período:</b> ${item.periodo}</p>
+          <p><b>Local:</b> ${item.local}</p>
+          ${item.imagem ? `<img src="${item.imagem}" alt="Imagem">` : ""}
+        `;
+        listaDiv.appendChild(div);
+      });
+    }
+
+    function removerItem(index) {
+      items.splice(index, 1);
+      localStorage.setItem("items", JSON.stringify(items));
+      renderItems(items);
+    }
+
+    function aplicarFiltro() {
+      const filtro = document.getElementById("filtroPeriodo").value;
+      const filtrados = filtro ? items.filter(i => i.periodo === filtro) : items;
+      renderItems(filtrados);
+    }
+
+    function limparFiltro() {
+      document.getElementById("filtroPeriodo").value = "";
+      renderItems(items);
+    }
+
+    renderItems(items);
+  </script>
+</body>
+</html>
